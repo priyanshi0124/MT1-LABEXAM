@@ -1,0 +1,201 @@
+//package.json
+{
+  "name": "food-ordering-app",
+  "version": "1.0.0",
+  "description": "Online Food Ordering Application",
+  "main": "expressApp.js",
+  "scripts": {
+    "start": "node expressApp.js",
+    "http": "node httpServer.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
+
+
+
+
+//httpServer.js
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+const server = http.createServer((req, res) => {
+
+    if (req.url === '/') {
+
+        fs.readFile(
+            path.join(__dirname, 'public', 'menu.html'),
+            (err, data) => {
+
+                if (err) {
+                    res.writeHead(500);
+                    res.end('Error loading page');
+                    return;
+                }
+
+                res.writeHead(200, {
+                    'Content-Type': 'text/html'
+                });
+
+                res.end(data);
+            }
+        );
+
+    } else {
+        res.writeHead(404);
+        res.end('Page Not Found');
+    }
+
+});
+
+server.listen(3000, () => {
+    console.log('HTTP Server running at http://localhost:3000');
+});
+
+
+
+//expressApp.js
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+
+const app = express();
+
+app.use(express.json());
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Food menu
+let foods = [
+    { id: 1, name: 'Pizza', price: 200 },
+    { id: 2, name: 'Burger', price: 100 },
+    { id: 3, name: 'Sandwich', price: 80 },
+    { id: 4, name: 'Cold Drink', price: 50 }
+];
+
+// Store orders in array
+let orders = [];
+
+// GET - Display all food items
+app.get('/foods', (req, res) => {
+
+    res.json(foods);
+
+});
+
+// GET - Display all orders
+app.get('/orders', (req, res) => {
+
+    res.json(orders);
+
+});
+
+// POST - Place a new order
+app.post('/orders', (req, res) => {
+
+    const { customer, food, quantity } = req.body;
+
+    if (!customer || !food ||
+        !Number.isInteger(quantity) || quantity < 1) {
+
+        return res.status(400).json({
+            message: 'Please enter valid order details'
+        });
+
+    }
+
+    const selectedFood = foods.find(
+        item => item.name === food
+    );
+
+    if (!selectedFood) {
+        return res.status(404).json({
+            message: 'Food item not found'
+        });
+    }
+
+    const order = {
+        id: orders.length + 1,
+        customer: customer,
+        food: food,
+        quantity: quantity,
+        total: selectedFood.price * quantity
+    };
+
+    orders.push(order);
+
+    res.status(201).json({
+        message: 'Order placed successfully!',
+        order: order
+    });
+
+});
+
+// PUT - Update an existing order
+app.put('/orders/:id', (req, res) => {
+
+    const id = Number(req.params.id);
+
+    const order = orders.find(
+        item => item.id === id
+    );
+
+    if (!order) {
+        return res.status(404).json({
+            message: 'Order not found'
+        });
+    }
+
+    const { quantity } = req.body;
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).json({
+            message: 'Invalid quantity'
+        });
+    }
+
+    const selectedFood = foods.find(
+        item => item.name === order.food
+    );
+
+    order.quantity = quantity;
+    order.total = selectedFood.price * quantity;
+
+    res.json({
+        message: 'Order updated successfully',
+        order: order
+    });
+
+});
+
+// DELETE - Cancel an order
+app.delete('/orders/:id', (req, res) => {
+
+    const id = Number(req.params.id);
+
+    const index = orders.findIndex(
+        item => item.id === id
+    );
+
+    if (index === -1) {
+        return res.status(404).json({
+            message: 'Order not found'
+        });
+    }
+
+    orders.splice(index, 1);
+
+    res.json({
+        message: 'Order cancelled successfully'
+    });
+
+});
+
+// Start server
+app.listen(4000, () => {
+
+    console.log('Express server running at http://localhost:4000');
+
+});
